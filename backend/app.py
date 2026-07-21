@@ -73,69 +73,7 @@ def close_db(exception):
     db = g.pop('db', None)
     if db: db.close()
 
-def init_db():
-    db = sqlite3.connect(app.config['DB_PATH'])
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            name TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            theme TEXT DEFAULT 'dark',
-            api_provider TEXT DEFAULT '',
-            api_key_encrypted TEXT DEFAULT '',
-            onboarding_done INTEGER DEFAULT 0
-        );
-        CREATE TABLE IF NOT EXISTS history (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            type TEXT NOT NULL,
-            filename TEXT,
-            raw_text TEXT,
-            corrected_text TEXT,
-            meaning_text TEXT DEFAULT '',
-            confidence REAL,
-            num_symbols INTEGER,
-            category TEXT DEFAULT '',
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            image_b64 TEXT,
-            symbols_json TEXT DEFAULT '',
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_history_user ON history(user_id);
-        CREATE INDEX IF NOT EXISTS idx_history_date ON history(created_at DESC);
-    """)
-    db.close()
 
-init_db()
-
-# Migrate: add meaning_text column if missing (for existing databases)
-def _migrate_db():
-    db = sqlite3.connect(app.config['DB_PATH'])
-    cursor = db.execute("PRAGMA table_info(history)")
-    columns = [row[1] for row in cursor.fetchall()]
-    if 'meaning_text' not in columns:
-        db.execute("ALTER TABLE history ADD COLUMN meaning_text TEXT DEFAULT ''")
-        db.commit()
-        print("Migration: added meaning_text column to history table")
-    # Migrate users table: add onboarding_done if missing
-    cursor2 = db.execute("PRAGMA table_info(users)")
-    user_columns = [row[1] for row in cursor2.fetchall()]
-    if 'onboarding_done' not in user_columns:
-        db.execute("ALTER TABLE users ADD COLUMN onboarding_done INTEGER DEFAULT 0")
-        db.commit()
-        print("Migration: added onboarding_done column to users table")
-    # Migrate history table: add symbols_json if missing
-    cursor3 = db.execute("PRAGMA table_info(history)")
-    history_columns = [row[1] for row in cursor3.fetchall()]
-    if 'symbols_json' not in history_columns:
-        db.execute("ALTER TABLE history ADD COLUMN symbols_json TEXT DEFAULT ''")
-        db.commit()
-        print("Migration: added symbols_json column to history table")
-    db.close()
-
-_migrate_db()
 
 # =====================================================================
 # AUTH
@@ -781,28 +719,7 @@ def _judicial_page(canvas, doc):
     # Double-line border at bottom
     footer_y = 30
     canvas.setStrokeColor(HexColor('#1a1a1a'))
-    canvas.setLineWidth(0.4)
-    canvas.line(margin, footer_y + 3, w - margin, footer_y + 3)
-    canvas.setLineWidth(1.2)
-    canvas.line(margin, footer_y, w - margin, footer_y)
-
-    # Footer text
-    canvas.setFillColor(HexColor('#666666'))
-    canvas.setFont('Times-Roman', 7)
-    canvas.drawString(margin, footer_y - 12,
-                      'This is a computer-generated transcript. Verify with original shorthand records.')
-
-    canvas.setFont('Times-Roman', 7)
-    canvas.drawRightString(w - margin, footer_y - 12, f'Page {doc.page}')
-
-    # Thin vertical margin lines (subtle legal feel)
-    canvas.setStrokeColor(HexColor('#e0e0e0'))
-    canvas.setLineWidth(0.3)
-    canvas.line(margin - 4, h - 34, margin - 4, footer_y + 6)
-    canvas.line(w - margin + 4, h - 34, w - margin + 4, footer_y + 6)
-
-    canvas.restoreState()
-
+    
 
 @app.route('/api/export/pdf/<history_id>', methods=['GET'])
 @token_required
