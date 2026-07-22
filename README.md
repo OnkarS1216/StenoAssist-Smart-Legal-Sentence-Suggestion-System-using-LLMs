@@ -1,4 +1,4 @@
-# Pitman Shorthand OCR — React + Flask
+# SteanoAsist Shorthand OCR — React + Flask
 
 ## Architecture
 ```
